@@ -40,26 +40,74 @@ lead-tracker/
 ├── backend/
 │   ├── database/
 │   │   └── schema.sql          # Database schema
+│   ├── logs/                   # Log files (backend.log, frontend.log)
 │   ├── src/
 │   │   ├── config/
 │   │   │   └── db.js           # Database configuration
 │   │   ├── controllers/        # Route controllers
+│   │   │   ├── dashboardController.js
+│   │   │   ├── followupController.js
+│   │   │   ├── leadController.js
+│   │   │   └── leadImportController.js
 │   │   ├── routes/             # API routes
+│   │   │   ├── cronRoutes.js
+│   │   │   ├── dashboardRoutes.js
+│   │   │   ├── followupRoutes.js
+│   │   │   ├── leadImportRoutes.js
+│   │   │   ├── leadRoutes.js
+│   │   │   └── logRoutes.js
 │   │   ├── middleware/         # Express middleware
+│   │   │   ├── loggerMiddleware.js
+│   │   │   └── uploadMiddleware.js
 │   │   ├── service/            # Business logic
+│   │   │   └── markMissedService.js
 │   │   ├── cron/               # Scheduled tasks
+│   │   │   └── markMissedFollowups.js
+│   │   ├── utils/              # Utility functions
+│   │   │   └── logger.js       # Logging utility
 │   │   ├── app.js              # Express app setup
 │   │   └── server.js           # Server entry point
+│   ├── .env                    # Environment variables (create from .env.example)
+│   ├── .env.example            # Example environment variables
 │   ├── package.json
 │   └── .gitignore
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                # API client functions
+│   │   │   ├── axiosInstance.js
+│   │   │   ├── followupApi.js
+│   │   │   └── leadsApi.js
 │   │   ├── components/         # React components
+│   │   │   ├── common/         # Common components
+│   │   │   │   ├── Button.jsx
+│   │   │   │   ├── Layout.jsx
+│   │   │   │   ├── Navbar.jsx
+│   │   │   │   └── StatusBadge.jsx
+│   │   │   └── followups/      # Follow-up components
+│   │   │       ├── FollowupTable.jsx
+│   │   │       ├── MissedFollowups.jsx
+│   │   │       ├── TodayFollowups.jsx
+│   │   │       └── UpcomingFollowups.jsx
 │   │   ├── pages/              # Page components
+│   │   │   ├── DashboardPage.jsx
+│   │   │   ├── DuplicateLeadsPage.jsx
+│   │   │   ├── FollowupsListPage.jsx
+│   │   │   ├── FollowupsPage.jsx
+│   │   │   ├── MissedPage.jsx
+│   │   │   ├── TodayPage.jsx
+│   │   │   ├── TotalLeadsPage.jsx
+│   │   │   ├── UpcomingPage.jsx
+│   │   │   └── UploadLeadsPage.jsx
+│   │   ├── utils/              # Utility functions
+│   │   │   └── logger.js       # Frontend logging utility
 │   │   ├── App.jsx             # Main app component
+│   │   ├── App.css
+│   │   ├── index.css
 │   │   └── main.jsx            # Entry point
 │   ├── public/                 # Static assets
+│   ├── .env                    # Environment variables (create from .env.example)
+│   ├── .env.example            # Example environment variables
+│   ├── vite.config.js          # Vite configuration
 │   ├── package.json
 │   └── .gitignore
 ├── .gitignore
@@ -105,12 +153,72 @@ npm install
 Create a `.env` file in the `backend` directory:
 
 ```env
+# Database Configuration
 DB_HOST=localhost
 DB_USER=your_mysql_username
 DB_PASSWORD=your_mysql_password
 DB_NAME=lead_tracker
+
+# Server Configuration
 PORT=5002
+
+# Logging Configuration
+# Set to 'true' to enable logging, 'false' to disable
+# Default: false (logging disabled if not set)
+ENABLE_BACKEND_LOGGING=true
+ENABLE_FRONTEND_LOGGING=true
 ```
+
+**Steps to create backend .env file:**
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Copy the example file (if available):
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Or create a new `.env` file and add the configuration above, replacing the placeholder values with your actual database credentials.
+
+**Logging Configuration:**
+- `ENABLE_BACKEND_LOGGING`: Controls whether backend API requests/responses and operations are logged to `backend/logs/backend.log`
+- `ENABLE_FRONTEND_LOGGING`: Controls whether frontend API calls are logged to `backend/logs/frontend.log`
+- Set to `'true'` to enable, `'false'` to disable
+- If not set, logging is disabled by default
+
+### Frontend Environment Variables
+
+Create a `.env` file in the `frontend` directory:
+
+```env
+# Frontend Logging Configuration
+# Set to 'true' to enable logging, 'false' to disable
+# Note: Vite requires VITE_ prefix for environment variables exposed to client
+# Default: false (logging disabled if not set)
+VITE_ENABLE_FRONTEND_LOGGING=true
+```
+
+**Steps to create frontend .env file:**
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Copy the example file (if available):
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Or create a new `.env` file and add the configuration above.
+
+**Important Notes:**
+- Vite requires the `VITE_` prefix for environment variables that need to be accessible in the client-side code
+- After changing frontend environment variables, you need to restart the development server for changes to take effect
+- Frontend logs are sent to the backend and written to `backend/logs/frontend.log` (controlled by `ENABLE_FRONTEND_LOGGING` in backend `.env`)
 
 ### Database Setup
 
