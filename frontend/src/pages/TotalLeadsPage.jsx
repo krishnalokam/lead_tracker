@@ -8,18 +8,24 @@ const TotalLeadsPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ followup_date: "", notes: "", status: "PENDING" });
   const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
 
   useEffect(() => {
     fetchLeads();
-  }, []);
+  }, [fromDate, toDate, search, page]);
 
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const res = await getLeads();
-      setLeads(res.data);
+      const res = await getLeads(fromDate || null, toDate || null, search || null, page, pageSize);
+      setLeads(res.data.data);
+      setTotal(res.data.total);
+      setTotalPages(res.data.totalPages);
     } catch (error) {
       console.error("Error fetching leads:", error);
     } finally {
@@ -73,31 +79,41 @@ const TotalLeadsPage = () => {
     }
   };
 
+  // const formatDate = (dateString) => {
+  //   if (!dateString) return "-";
+  //   // If already in YYYY-MM-DD format, use it directly
+  //   if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+  //     return dateString;
+  //   }
+  //   // Parse date and format in local timezone to avoid day shift
+  //   const date = new Date(dateString);
+  //   const year = date.getFullYear();
+  //   const month = String(date.getMonth() + 1).padStart(2, '0');
+  //   const day = String(date.getDate()).padStart(2, '0');
+  //   return `${year}-${month}-${day}`;
+  // };
+
   const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    // If already in YYYY-MM-DD format, use it directly
-    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      return dateString;
-    }
-    // Parse date and format in local timezone to avoid day shift
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  if (!dateString) return "-";
 
-  const filteredLeads = leads.filter(
-    (lead) =>
-      lead.name?.toLowerCase().includes(search.toLowerCase()) ||
-      lead.phone?.includes(search) ||
-      lead.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const date = new Date(dateString);
 
-  const paginatedLeads = filteredLeads.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+  // Month names
+  const months = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+  ];
+
+  const month = months[date.getMonth()];
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${month}, ${day}, ${year}`;
+};
+
+
+  // Backend handles filtering and pagination, so we use leads directly
+  const paginatedLeads = leads;
 
   if (loading) {
     return (
@@ -109,14 +125,20 @@ const TotalLeadsPage = () => {
 
   return (
     <Layout title="Total Leads">
-      <div style={{ marginBottom: "16px" }}>
+      <div style={{ marginBottom: "16px", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="text"
           placeholder="Search by name, phone, or email"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1);
+            setPage(1); // Reset to first page on search change
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setPage(1);
+              fetchLeads();
+            }
           }}
           style={{
             padding: "8px 12px",
@@ -125,6 +147,62 @@ const TotalLeadsPage = () => {
             borderRadius: "4px",
           }}
         />
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>
+            From Date (CreatedAt):
+          </label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>
+            To Date (CreatedAt):
+          </label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+        {(fromDate || toDate) && (
+          <button
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+              setPage(1);
+            }}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#ef4444",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "14px",
+            }}
+          >
+            Clear Date Filters
+          </button>
+        )}
       </div>
 
       <div style={{ overflowX: "auto" }}>
@@ -148,7 +226,7 @@ const TotalLeadsPage = () => {
                 Email
               </th>
               <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
-                Source
+                Created At
               </th>
               <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
                 Follow-up Date
@@ -183,7 +261,7 @@ const TotalLeadsPage = () => {
                   <td style={{ padding: "12px" }}>{lead.name}</td>
                   <td style={{ padding: "12px" }}>{lead.phone || "-"}</td>
                   <td style={{ padding: "12px" }}>{lead.email || "-"}</td>
-                  <td style={{ padding: "12px" }}>{lead.source || "-"}</td>
+                  <td style={{ padding: "12px" }}>{formatDate(lead.created_at)}</td>
                   <td style={{ padding: "12px" }}>
                     {editingId === lead.id ? (
                       <input
@@ -240,7 +318,6 @@ const TotalLeadsPage = () => {
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="COMPLETED">COMPLETED</option>
-                        <option value="MISSED">MISSED</option>
                       </select>
                     ) : (
                       <span
@@ -333,7 +410,7 @@ const TotalLeadsPage = () => {
       >
         <div>
           <span style={{ color: "#6b7280" }}>
-            Showing {paginatedLeads.length} of {filteredLeads.length} leads
+            Showing {paginatedLeads.length} of {total} leads
           </span>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -352,21 +429,18 @@ const TotalLeadsPage = () => {
             Previous
           </button>
           <span style={{ padding: "0 12px" }}>
-            Page {page} of {Math.ceil(filteredLeads.length / pageSize) || 1}
+            Page {page} of {totalPages || 1}
           </span>
           <button
             onClick={() => setPage(page + 1)}
-            disabled={page * pageSize >= filteredLeads.length}
+            disabled={page >= totalPages}
             style={{
               padding: "6px 12px",
-              backgroundColor:
-                page * pageSize >= filteredLeads.length ? "#e5e7eb" : "#2563eb",
-              color:
-                page * pageSize >= filteredLeads.length ? "#9ca3af" : "#ffffff",
+              backgroundColor: page >= totalPages ? "#e5e7eb" : "#2563eb",
+              color: page >= totalPages ? "#9ca3af" : "#ffffff",
               border: "none",
               borderRadius: "4px",
-              cursor:
-                page * pageSize >= filteredLeads.length ? "not-allowed" : "pointer",
+              cursor: page >= totalPages ? "not-allowed" : "pointer",
             }}
           >
             Next

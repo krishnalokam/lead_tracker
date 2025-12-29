@@ -24,17 +24,21 @@ const FollowupsListPage = ({ type, title }) => {
   });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
 
   useEffect(() => {
     fetchData();
-  }, [type]);
+  }, [type, search, page]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await apiMap[type]();
-      setData(res.data);
+      const res = await apiMap[type](search || null, page, pageSize);
+      setData(res.data.data);
+      setTotal(res.data.total);
+      setTotalPages(res.data.totalPages);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -89,30 +93,25 @@ const FollowupsListPage = ({ type, title }) => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    // If already in YYYY-MM-DD format, use it directly
-    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      return dateString;
-    }
-    // Parse date and format in local timezone to avoid day shift
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  if (!dateString) return "-";
 
-  const filteredData = data.filter(
-    (lead) =>
-      lead.name?.toLowerCase().includes(search.toLowerCase()) ||
-      lead.phone?.includes(search) ||
-      lead.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const date = new Date(dateString);
 
-  const paginatedData = filteredData.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+  // Month names
+  const months = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+  ];
+
+  const month = months[date.getMonth()];
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${month}, ${day}, ${year}`;
+};
+
+  // Backend handles filtering and pagination, so we use data directly
+  const paginatedData = data;
 
   if (loading) {
     return (
@@ -131,7 +130,13 @@ const FollowupsListPage = ({ type, title }) => {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1);
+            setPage(1); // Reset to first page on search change
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setPage(1);
+              fetchData();
+            }
           }}
           style={{
             padding: "8px 12px",
@@ -255,7 +260,6 @@ const FollowupsListPage = ({ type, title }) => {
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="COMPLETED">COMPLETED</option>
-                        <option value="MISSED">MISSED</option>
                       </select>
                     ) : (
                       <span
@@ -348,7 +352,7 @@ const FollowupsListPage = ({ type, title }) => {
       >
         <div>
           <span style={{ color: "#6b7280" }}>
-            Showing {paginatedData.length} of {filteredData.length} leads
+            Showing {paginatedData.length} of {total} leads
           </span>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -367,21 +371,18 @@ const FollowupsListPage = ({ type, title }) => {
             Previous
           </button>
           <span style={{ padding: "0 12px" }}>
-            Page {page} of {Math.ceil(filteredData.length / pageSize) || 1}
+            Page {page} of {totalPages || 1}
           </span>
           <button
             onClick={() => setPage(page + 1)}
-            disabled={page * pageSize >= filteredData.length}
+            disabled={page >= totalPages}
             style={{
               padding: "6px 12px",
-              backgroundColor:
-                page * pageSize >= filteredData.length ? "#e5e7eb" : "#2563eb",
-              color:
-                page * pageSize >= filteredData.length ? "#9ca3af" : "#ffffff",
+              backgroundColor: page >= totalPages ? "#e5e7eb" : "#2563eb",
+              color: page >= totalPages ? "#9ca3af" : "#ffffff",
               border: "none",
               borderRadius: "4px",
-              cursor:
-                page * pageSize >= filteredData.length ? "not-allowed" : "pointer",
+              cursor: page >= totalPages ? "not-allowed" : "pointer",
             }}
           >
             Next

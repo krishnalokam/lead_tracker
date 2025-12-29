@@ -1,11 +1,15 @@
 const csv = require('csv-parser');
 const { pool } = require("../config/db");
 const { Readable } = require("stream");
+const { backendLogger } = require('../utils/logger');
 
 const importLeads = async (req, res) => {
    if (!req.file) {
+    backendLogger.log("CSV import failed: No file provided");
     return res.status(400).json({ message: "CSV file required" });
   }
+
+  backendLogger.log(`Starting CSV import, file size: ${req.file.size} bytes`);
 
   let inserted = 0;
   let skipped = 0;
@@ -20,6 +24,8 @@ const importLeads = async (req, res) => {
       rows.push(row);
     })
     .on("end", async () => {
+      backendLogger.log(`CSV parsed, processing ${rows.length} rows`);
+      
       // 2️⃣ Process rows AFTER parsing completes
       for (const row of rows) {
         try {
@@ -53,17 +59,21 @@ const importLeads = async (req, res) => {
           
             skipped++;
           } else {
-            console.error("Row insert error:", error);
+            backendLogger.error('Row insert error:', error);
           }
         }
       }
 
-      // 3️⃣ NOW counts are accurate
-      res.json({
+      const result = {
         message: "CSV import completed",
         inserted,
         skipped,
-      });
+      };
+      
+      backendLogger.log("CSV import completed:", result);
+      
+      // 3️⃣ NOW counts are accurate
+      res.json(result);
     });
 
 

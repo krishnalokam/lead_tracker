@@ -1,14 +1,22 @@
 import axios from "./axiosInstance";
 
-export const getLeads = () => axios.get("/leads");
+export const getLeads = (fromDate, toDate, search, page, pageSize) => {
+  const params = {};
+  if (fromDate) params.fromDate = fromDate;
+  if (toDate) params.toDate = toDate;
+  if (search) params.search = search;
+  if (page) params.page = page;
+  if (pageSize) params.pageSize = pageSize;
+  return axios.get("/leads", { params });
+};
 
-export const getDuplicateLeads = (date, phone) => {
+export const getDuplicateLeads = (date, phone, page, pageSize) => {
   const params = {};
   if (date) params.date = date;
   if (phone) params.phone = phone;
-  return Object.keys(params).length > 0 
-    ? axios.get("/leads/duplicates", { params })
-    : axios.get("/leads/duplicates");
+  if (page) params.page = page;
+  if (pageSize) params.pageSize = pageSize;
+  return axios.get("/leads/duplicates", { params });
 };
 
 export const updateLeadFollowup = (id, followup_date, notes, status) =>

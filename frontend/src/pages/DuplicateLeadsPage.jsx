@@ -9,6 +9,8 @@ const DuplicateLeadsPage = () => {
   const [phoneFilter, setPhoneFilter] = useState("");
   const [phoneInput, setPhoneInput] = useState(""); // Separate state for input
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
 
   // Debounce phone filter - update phoneFilter after user stops typing
@@ -20,20 +22,26 @@ const DuplicateLeadsPage = () => {
     return () => clearTimeout(timer);
   }, [phoneInput]);
 
-  // Fetch data when filters change
+  // Fetch data when filters or page change
   useEffect(() => {
     fetchDuplicateLeads();
-  }, [dateFilter, phoneFilter]);
+  }, [dateFilter, phoneFilter, page]);
 
   const fetchDuplicateLeads = async () => {
     try {
       setLoading(true);
-      setPage(1); // Reset to first page when filter changes
+      if (page === 1 && (dateFilter || phoneFilter)) {
+        // Only reset page if filters changed (not on initial load)
+      }
       const res = await getDuplicateLeads(
         dateFilter || null,
-        phoneFilter || null
+        phoneFilter || null,
+        page,
+        pageSize
       );
-      setLeads(res.data);
+      setLeads(res.data.data);
+      setTotal(res.data.total);
+      setTotalPages(res.data.totalPages);
     } catch (error) {
       console.error("Error fetching duplicate leads:", error);
     } finally {
@@ -55,16 +63,33 @@ const DuplicateLeadsPage = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
+  // const formatDateTime = (dateString) => {
+  //   if (!dateString) return "-";
+  //   const date = new Date(dateString);
+  //   return date.toLocaleString();
+  // };
 
-  const paginatedLeads = leads.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+   const formatDateTime = (dateString) => {
+  if (!dateString) return "-";
+
+  const date = new Date(dateString);
+
+  // Month names
+  const months = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+  ];
+
+  const month = months[date.getMonth()];
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${month}, ${day}, ${year}`;
+};
+
+
+  // Backend handles pagination, so we use leads directly
+  const paginatedLeads = leads;
 
   if (loading) {
     return (
@@ -78,11 +103,14 @@ const DuplicateLeadsPage = () => {
     <Layout title="Duplicate Leads">
       <div style={{ marginBottom: "16px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <label style={{ fontWeight: "600" }}>Filter by Date:</label>
+          <label style={{ fontWeight: "600" }}>Filter by Created At:</label>
           <input
             type="date"
             value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setPage(1); // Reset to first page on filter change
+            }}
             style={{
               padding: "8px 12px",
               border: "1px solid #d1d5db",
@@ -111,6 +139,7 @@ const DuplicateLeadsPage = () => {
               setDateFilter("");
               setPhoneFilter("");
               setPhoneInput("");
+              setPage(1); // Reset to first page when clearing filters
             }}
             style={{
               padding: "8px 16px",
@@ -129,7 +158,7 @@ const DuplicateLeadsPage = () => {
 
       <div style={{ marginBottom: "16px" }}>
         <span style={{ color: "#6b7280" }}>
-          Total: {leads.length} duplicate lead{leads.length !== 1 ? "s" : ""}
+          Total: {total} duplicate lead{total !== 1 ? "s" : ""}
           {(dateFilter || phoneFilter) && (
             <span>
               {" "}(filtered
@@ -166,6 +195,10 @@ const DuplicateLeadsPage = () => {
               <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
                 Created At
               </th>
+              <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
+                Original Lead On
+              </th>
+              
             </tr>
           </thead>
           <tbody>
@@ -191,6 +224,7 @@ const DuplicateLeadsPage = () => {
                   <td style={{ padding: "12px" }}>{lead.email || "-"}</td>
                   <td style={{ padding: "12px" }}>{lead.source || "-"}</td>
                   <td style={{ padding: "12px" }}>{formatDateTime(lead.created_at)}</td>
+                  <td style={{ padding: "12px" }}>{formatDateTime(lead.lead_created_at)}</td>
                 </tr>
               ))
             )}
@@ -198,7 +232,7 @@ const DuplicateLeadsPage = () => {
         </table>
       </div>
 
-      {leads.length > 0 && (
+      {total > 0 && (
         <div
           style={{
             marginTop: "16px",
@@ -209,7 +243,7 @@ const DuplicateLeadsPage = () => {
         >
         <div>
           <span style={{ color: "#6b7280" }}>
-            Showing {paginatedLeads.length} of {leads.length} duplicate leads
+            Showing {paginatedLeads.length} of {total} duplicate leads
           </span>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -228,21 +262,18 @@ const DuplicateLeadsPage = () => {
             Previous
           </button>
           <span style={{ padding: "0 12px" }}>
-            Page {page} of {Math.ceil(leads.length / pageSize) || 1}
+            Page {page} of {totalPages || 1}
           </span>
           <button
             onClick={() => setPage(page + 1)}
-            disabled={page * pageSize >= leads.length}
+            disabled={page >= totalPages}
             style={{
               padding: "6px 12px",
-              backgroundColor:
-                page * pageSize >= leads.length ? "#e5e7eb" : "#2563eb",
-              color:
-                page * pageSize >= leads.length ? "#9ca3af" : "#ffffff",
+              backgroundColor: page >= totalPages ? "#e5e7eb" : "#2563eb",
+              color: page >= totalPages ? "#9ca3af" : "#ffffff",
               border: "none",
               borderRadius: "4px",
-              cursor:
-                page * pageSize >= leads.length ? "not-allowed" : "pointer",
+              cursor: page >= totalPages ? "not-allowed" : "pointer",
             }}
           >
             Next

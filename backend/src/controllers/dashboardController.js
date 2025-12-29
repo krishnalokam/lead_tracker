@@ -1,7 +1,10 @@
 const { pool } = require("../config/db");
+const { backendLogger } = require('../utils/logger');
 
 exports.getDashboardSummary = async (req, res) => {
   try {
+    backendLogger.log("Fetching dashboard summary");
+    
     const [results] = await pool.query(`
       SELECT
         (SELECT COUNT(*) FROM leads) AS totalLeads,
@@ -25,15 +28,19 @@ exports.getDashboardSummary = async (req, res) => {
 
     const result = results[0];
     
-    // Ensure all counts are numbers
-    res.json({
+    const summary = {
       totalLeads: parseInt(result.totalLeads) || 0,
       todayFollowups: parseInt(result.todayFollowups) || 0,
       upcomingFollowups: parseInt(result.upcomingFollowups) || 0,
       missedFollowups: parseInt(result.missedFollowups) || 0,
-    });
+    };
+    
+    backendLogger.log("Dashboard summary retrieved:", summary);
+    
+    // Ensure all counts are numbers
+    res.json(summary);
   } catch (error) {
-    console.error("Dashboard summary error:", error);
+    backendLogger.error('Dashboard summary error:', error);
     res.status(500).json({ message: "Server error" });
   }
 };
